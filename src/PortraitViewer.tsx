@@ -39,7 +39,7 @@ export function PortraitViewer({ image }: { image: string }) {
   }
 
   return (
-    <div className="p-8 bg-white rounded shadow flex justify-center items-center overflow-hidden">
+    <div className="bg-white flex justify-center items-center overflow-hidden outline-10 outline-black">
       <div
         className="relative inline-block"
         style={{

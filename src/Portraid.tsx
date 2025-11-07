@@ -19,7 +19,7 @@ export function Portraid() {
 
   return (
     <div
-      className="w-full h-screen flex justify-center items-center bg-gray-100"
+      className="w-full h-screen flex justify-center items-center bg-gray-800 p-8"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
