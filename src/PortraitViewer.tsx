@@ -78,8 +78,29 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     }))
   );
 
+  const moved = useRef(false);
+
+  function handleMouseDown() {
+    moved.current = false;
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
+
+  function handleMouseMove() {
+    moved.current = true;
+  }
+
+  function handleMouseUp() {
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+    setTimeout(() => {
+      moved.current = false;
+    }, 0);
+  }
+
   function handleLeftClick(square: Square, e: React.MouseEvent) {
     e.stopPropagation();
+    if (moved.current) return; // prevent subdivision if it was a drag
     if (square.subdivided) return; // already subdivided
     const newSub = [
       { row: 0, col: 0, size: square.size / 2 },
@@ -90,6 +111,7 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     setSquares((prev) =>
       prev.map((s) => (s.id === square.id ? { ...s, subdivided: newSub } : s))
     );
+    moved.current = false;
   }
 
   function handleRightClick(square: Square, e: React.MouseEvent) {
@@ -138,5 +160,9 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     );
   }
 
-  return <>{squares.map((s) => renderSquare(s))}</>;
+  return (
+    <div onMouseDown={handleMouseDown}>
+      {squares.map((s) => renderSquare(s))}
+    </div>
+  );
 }
