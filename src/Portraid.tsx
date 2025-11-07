@@ -1,4 +1,4 @@
-import { useState, DragEvent } from "react";
+import { useState, useRef, DragEvent } from "react";
 
 export function Portraid() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -33,13 +33,61 @@ export function Portraid() {
 }
 
 function PortraitViewer({ image }: { image: string }) {
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const translateRef = useRef({ x: 0, y: 0 }); // to keep in sync
+  const dragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    const delta = -e.deltaY; // invert to zoom in/out naturally
+    const zoomFactor = 0.001; // sensitivity
+    setScale((prev) => Math.max(0.1, prev + delta * zoomFactor));
+  }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    dragging.current = true;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+
+    // Attach listeners to window for smooth dragging
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!dragging.current) return;
+    const dx = e.clientX - lastPos.current.x;
+    const dy = e.clientY - lastPos.current.y;
+    translateRef.current = {
+      x: translateRef.current.x + dx,
+      y: translateRef.current.y + dy,
+    };
+    setTranslate({ ...translateRef.current });
+    lastPos.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function handleMouseUp() {
+    dragging.current = false;
+    // Remove window listeners
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  }
+
   return (
-    <div className="p-8 bg-white rounded shadow flex justify-center items-center">
-      <div className="relative inline-block">
+    <div className="p-8 bg-white rounded shadow flex justify-center items-center overflow-hidden">
+      <div
+        className="relative inline-block"
+        style={{
+          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+      >
         <img
           src={image}
           alt="Dropped"
-          className="max-w-full max-h-[90vh] object-contain"
+          className="max-w-full max-h-[90vh] object-contain pointer-events-none select-none"
         />
         <GridOverlay />
       </div>
