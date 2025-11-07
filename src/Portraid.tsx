@@ -1,4 +1,5 @@
-import { useState, DragEvent } from "react";
+import { useState } from "react";
+import type { DragEvent } from "react";
 import { PortraitViewer } from "./PortraitViewer";
 
 export function Portraid() {
