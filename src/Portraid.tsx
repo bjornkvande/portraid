@@ -26,14 +26,46 @@ export function Portraid() {
           Drag & Drop a JPG image here
         </div>
       ) : (
-        <div className="p-8 bg-white rounded shadow">
-          <img
-            src={imageSrc}
-            alt="Dropped"
-            className="max-w-full max-h-[90vh] object-contain"
-          />
-        </div>
+        <PortraitViewer image={imageSrc} />
       )}
+    </div>
+  );
+}
+
+function PortraitViewer({ image }: { image: string }) {
+  return (
+    <div className="p-8 bg-white rounded shadow flex justify-center items-center">
+      {/* Image + Grid wrapper */}
+      <div className="relative inline-block">
+        <img
+          src={image}
+          alt="Dropped"
+          className="max-w-full max-h-[90vh] object-contain"
+        />
+        <GridOverlay />
+      </div>
+    </div>
+  );
+}
+
+function GridOverlay() {
+  const gridLines = 7;
+  return (
+    <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+      {[...Array(gridLines)].map((_, i) => (
+        <div
+          key={`h-${i}`}
+          className="absolute left-0 w-full border-t border-white"
+          style={{ top: `${(i * 100) / (gridLines - 1)}%` }}
+        />
+      ))}
+      {[...Array(gridLines)].map((_, i) => (
+        <div
+          key={`v-${i}`}
+          className="absolute top-0 h-full border-l border-white"
+          style={{ left: `${(i * 100) / (gridLines - 1)}%` }}
+        />
+      ))}
     </div>
   );
 }
