@@ -35,7 +35,6 @@ export function Portraid() {
 function PortraitViewer({ image }: { image: string }) {
   return (
     <div className="p-8 bg-white rounded shadow flex justify-center items-center">
-      {/* Image + Grid wrapper */}
       <div className="relative inline-block">
         <img
           src={image}
@@ -49,7 +48,7 @@ function PortraitViewer({ image }: { image: string }) {
 }
 
 function GridOverlay() {
-  const gridLines = 7;
+  const gridLines = 9;
   return (
     <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
       {[...Array(gridLines)].map((_, i) => (
