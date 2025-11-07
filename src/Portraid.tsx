@@ -26,11 +26,13 @@ export function Portraid() {
           Drag & Drop a JPG image here
         </div>
       ) : (
-        <img
-          src={imageSrc}
-          alt="Dropped"
-          className="max-w-full max-h-full object-contain"
-        />
+        <div className="p-8 bg-white rounded shadow">
+          <img
+            src={imageSrc}
+            alt="Dropped"
+            className="max-w-full max-h-[90vh] object-contain"
+          />
+        </div>
       )}
     </div>
   );
