@@ -54,7 +54,7 @@ export function PortraitViewer({ image }: { image: string }) {
           alt="Dropped"
           className="max-w-full max-h-[90vh] object-contain pointer-events-none select-none"
         />
-        <SubdividingGrid gridSize={9} />
+        <SubdividingGrid gridSize={8} />
       </div>
     </div>
   );
