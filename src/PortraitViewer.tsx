@@ -1,7 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export function PortraitViewer({ image }: { image: string }) {
   const [scale, setScale] = useState(1);
+  const [gridVisible, setGridVisible] = useState(true);
+
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const translateRef = useRef({ x: 0, y: 0 });
   const dragging = useRef(false);
@@ -38,8 +40,18 @@ export function PortraitViewer({ image }: { image: string }) {
     window.removeEventListener("mouseup", handleMouseUp);
   }
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "g") {
+        setGridVisible((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <div className="bg-white flex justify-center items-center overflow-hidden outline-10 outline-black">
+    <div className="bg-white flex justify-center items-center overflow-hidden outline-5 outline-black">
       <div
         className="relative inline-block"
         style={{
@@ -52,9 +64,15 @@ export function PortraitViewer({ image }: { image: string }) {
         <img
           src={image}
           alt="Dropped"
-          className="max-w-full max-h-[90vh] object-contain pointer-events-none select-none"
+          className="max-w-full max-h-[95vh] object-contain pointer-events-none select-none"
         />
-        <SubdividingGrid gridSize={8} />
+        <div
+          className={`transition-opacity duration-200 ${
+            gridVisible ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <SubdividingGrid gridSize={8} />
+        </div>
       </div>
     </div>
   );
