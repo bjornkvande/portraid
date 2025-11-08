@@ -155,7 +155,7 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     return (
       <div key={square.id}>
         <div
-          className="absolute border border-white pointer-events-auto"
+          className="absolute border border-white/50 pointer-events-auto"
           style={{
             left: `${left}%`,
             top: `${top}%`,
