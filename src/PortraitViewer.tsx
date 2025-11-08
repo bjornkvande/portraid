@@ -101,7 +101,15 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
   function handleLeftClick(square: Square, e: React.MouseEvent) {
     e.stopPropagation();
     if (moved.current) return; // prevent subdivision if it was a drag
-    if (square.subdivided) return; // already subdivided
+    if (square.subdivided) {
+      hideSubSquare(square);
+    } else {
+      showSubSquare(square);
+    }
+    moved.current = false;
+  }
+
+  function showSubSquare(square: Square) {
     const newSub = [
       { row: 0, col: 0, size: square.size / 2 },
       { row: 0, col: 1, size: square.size / 2 },
@@ -111,12 +119,9 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     setSquares((prev) =>
       prev.map((s) => (s.id === square.id ? { ...s, subdivided: newSub } : s))
     );
-    moved.current = false;
   }
 
-  function handleRightClick(square: Square, e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
+  function hideSubSquare(square: Square) {
     setSquares((prev) =>
       prev.map((s) =>
         s.id === square.id ? { ...s, subdivided: undefined } : s
@@ -140,20 +145,19 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
             height: `${sizePct}%`,
           }}
           onClick={(e) => handleLeftClick(square, e)}
-          onContextMenu={(e) => handleRightClick(square, e)}
         />
         {square.subdivided &&
           square.subdivided.map((sub, i) => (
             <div
               key={`${square.id}-sub-${i}`}
-              className="absolute border border-white pointer-events-auto"
+              className="absolute border border-white/30 pointer-events-auto"
               style={{
                 left: `${left + sub.col * sub.size * 100}%`,
                 top: `${top + sub.row * sub.size * 100}%`,
                 width: `${sub.size * 100}%`,
                 height: `${sub.size * 100}%`,
               }}
-              onContextMenu={(e) => handleRightClick(square, e)}
+              onClick={(e) => handleLeftClick(square, e)}
             />
           ))}
       </div>
