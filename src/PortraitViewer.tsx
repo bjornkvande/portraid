@@ -9,6 +9,16 @@ export function PortraitViewer({ image }: { image: string }) {
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
+  // enable adding the width and showing the height of the image in mm
+  const [widthMM, setWidthMM] = useState<number>(() => {
+    return parseInt(localStorage.getItem("portraid:widthMM") || "200");
+  });
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  const heightMM = imgSize ? Math.round(widthMM * (imgSize.h / imgSize.w)) : 0;
+  useEffect(() => {
+    localStorage.setItem("portraid:widthMM", String(widthMM));
+  }, [widthMM]);
+
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const delta = -e.deltaY;
     const zoomFactor = 0.001;
@@ -65,6 +75,10 @@ export function PortraitViewer({ image }: { image: string }) {
           src={image}
           alt="Dropped"
           className="max-w-full max-h-[95vh] object-contain pointer-events-none select-none"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+          }}
         />
         <div
           className={`transition-opacity duration-200 ${
@@ -73,6 +87,15 @@ export function PortraitViewer({ image }: { image: string }) {
         >
           <SubdividingGrid gridSize={8} />
         </div>
+      </div>
+
+      <div className="absolute top-0 flex justify-center items-center">
+        <input
+          className="bg-white z-50 px-1 h-full w-12 text-center"
+          value={widthMM}
+          onChange={(e) => setWidthMM(Number(e.target.value))}
+        />
+        <span className="text-white ml-2">{heightMM}</span>
       </div>
     </div>
   );
