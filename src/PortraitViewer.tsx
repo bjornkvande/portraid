@@ -1,11 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 
 export function PortraitViewer({ image }: { image: string }) {
-  const [scale, setScale] = useState(1);
-  const [gridVisible, setGridVisible] = useState(true);
+  // --- Load persistent viewer state ---
+  const savedViewer = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("portraid:viewerState") || "{}");
+    } catch {
+      return {};
+    }
+  })();
 
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const translateRef = useRef({ x: 0, y: 0 });
+  const [scale, setScale] = useState(savedViewer.scale ?? 1);
+  const [gridVisible, setGridVisible] = useState(
+    savedViewer.gridVisible ?? true
+  );
+
+  const [translate, setTranslate] = useState(
+    savedViewer.translate ?? { x: 0, y: 0 }
+  );
+
+  const translateRef = useRef(savedViewer.translate ?? { x: 0, y: 0 });
+
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
@@ -18,6 +33,16 @@ export function PortraitViewer({ image }: { image: string }) {
   useEffect(() => {
     localStorage.setItem("portraid:widthMM", String(widthMM));
   }, [widthMM]);
+
+  // --- Save viewer state ---
+  useEffect(() => {
+    const state = {
+      scale,
+      translate,
+      gridVisible,
+    };
+    localStorage.setItem("portraid:viewerState", JSON.stringify(state));
+  }, [scale, translate, gridVisible]);
 
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const delta = -e.deltaY;
@@ -110,16 +135,28 @@ type Square = {
 };
 
 function SubdividingGrid({ gridSize }: { gridSize: number }) {
-  const [squares, setSquares] = useState<Square[]>(
-    Array.from({ length: gridSize * gridSize }, (_, i) => ({
+  // --- Load saved squares OR create default grid ---
+  const [squares, setSquares] = useState<Square[]>(() => {
+    const saved = localStorage.getItem("portraid:grid");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return Array.from({ length: gridSize * gridSize }, (_, i) => ({
       id: `s-${i}`,
       row: Math.floor(i / gridSize),
       col: i % gridSize,
       size: 1 / gridSize,
-    }))
-  );
+    }));
+  });
 
   const moved = useRef(false);
+
+  // --- Persist grid to localStorage ---
+  useEffect(() => {
+    localStorage.setItem("portraid:grid", JSON.stringify(squares));
+  }, [squares]);
 
   function handleMouseDown() {
     moved.current = false;
@@ -141,7 +178,7 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
 
   function handleLeftClick(square: Square, e: React.MouseEvent) {
     e.stopPropagation();
-    if (moved.current) return; // prevent subdivision if it was a drag
+    if (moved.current) return;
     if (square.subdivided) {
       hideSubSquare(square);
     } else {
