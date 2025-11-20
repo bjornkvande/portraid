@@ -47,7 +47,7 @@ export function PortraitViewer({ image }: { image: string }) {
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const delta = -e.deltaY;
     const zoomFactor = 0.001;
-    setScale((prev) => Math.max(0.1, prev + delta * zoomFactor));
+    setScale((prev: number) => Math.max(0.1, prev + delta * zoomFactor));
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -78,7 +78,7 @@ export function PortraitViewer({ image }: { image: string }) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key.toLowerCase() === "g") {
-        setGridVisible((v) => !v);
+        setGridVisible((v: boolean) => !v);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -141,7 +141,9 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {}
+      } catch {
+        // no need to do anything
+      }
     }
     return Array.from({ length: gridSize * gridSize }, (_, i) => ({
       id: `s-${i}`,
