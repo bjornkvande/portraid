@@ -3,13 +3,16 @@ import type { DragEvent } from "react";
 import { PortraitViewer } from "./PortraitViewer";
 
 export function Portraid() {
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImage] = useState<string | null>(() => {
+    return localStorage.getItem("portraid:lastImage");
+  });
 
   async function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
     const image = await readDroppedFile(e.dataTransfer.files[0]);
-    setImageSrc(image);
+    setImage(image);
+    localStorage.setItem("portraid:lastImage", image);
   }
 
   function handleDragOver(e: DragEvent<HTMLDivElement>) {
