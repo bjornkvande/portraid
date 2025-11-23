@@ -14,7 +14,7 @@ export function PortraitViewer({ image }: { image: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // to avoid problems with event handlers not getting updated state, we use refs
-  const scale = useRef(1);
+  const scale = useRef(savedState.scale ?? 1);
   const translateRef = useRef(savedState.translate ?? { x: 0, y: 0 });
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
@@ -34,9 +34,13 @@ export function PortraitViewer({ image }: { image: string }) {
     savedState.gridVisible ?? true
   );
   useEffect(() => {
-    const state = { scale, translate: translateRef.current, gridVisible };
+    const state = {
+      scale: scale.current,
+      translate: translateRef.current,
+      gridVisible,
+    };
     localStorage.setItem("portraid:viewerState", JSON.stringify(state));
-  }, [scale, translateRef.current.x, gridVisible]);
+  }, [scale.current, translateRef.current.x, gridVisible]);
 
   // handle all the events needed for image movement and zooming
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
