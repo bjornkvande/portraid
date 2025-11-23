@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 
-type Point = { x: number; y: number };
-type Line = { a: Point | null; b: Point | null };
+import { Grid } from "./Grid.tsx";
+import { GridMeasure } from "./GridMeasure.tsx";
 
 export function PortraitViewer({ image }: { image: string }) {
-  // the state of the app
   const savedState = useMemo(() => {
     return JSON.parse(localStorage.getItem("portraid:viewerState") || "{}");
     // eslint-disable-next-line
   }, [image]);
+
+  // we need access to the image and wrapper elements to calculate width/height/distance
+  const imageRef = useRef<HTMLImageElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // to avoid problems with event handlers not getting updated state, we use refs
   const scale = useRef(1);
@@ -17,21 +20,19 @@ export function PortraitViewer({ image }: { image: string }) {
   const lastPos = useRef({ x: 0, y: 0 });
   const [, forceUpdate] = useState(0);
 
-  const [gridVisible, setGridVisible] = useState(
-    savedState.gridVisible ?? true
-  );
-
   // enable adding the width and showing the height of the image in mm
   const [widthMM, setWidthMM] = useState<number>(() => {
     return parseInt(localStorage.getItem("portraid:widthMM") || "200");
   });
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
-  const heightMM = imgSize ? Math.round(widthMM * (imgSize.h / imgSize.w)) : 0;
   useEffect(() => {
     localStorage.setItem("portraid:widthMM", String(widthMM));
   }, [widthMM]);
 
   // save viewer state when anything changes
+  const [gridVisible, setGridVisible] = useState(
+    savedState.gridVisible ?? true
+  );
   useEffect(() => {
     const state = { scale, translate: translateRef.current, gridVisible };
     localStorage.setItem("portraid:viewerState", JSON.stringify(state));
@@ -81,99 +82,13 @@ export function PortraitViewer({ image }: { image: string }) {
       } else if (["1", "2", "4"].includes(e.key)) {
         scale.current = parseInt(e.key);
       }
+      forceUpdate((n) => n + 1);
     }
-    forceUpdate((n) => n + 1);
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // the user can place a line on the image to measure distance between two points
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [line, setLine] = useState<Line>({ a: null, b: null });
-
-  // track mouse in IMAGE coordinates
-  const mousePos = useRef({ x: 0, y: 0 });
-  function trackMousePos(e: MouseEvent) {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    // mouse pos relative to wrapper
-    const rect = wrapper.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
-
-    // including translation and scale
-    x = (x - translateRef.current.x) / scale.current;
-    y = (y - translateRef.current.y) / scale.current;
-
-    mousePos.current = { x, y };
-  }
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "a") {
-        const { x, y } = mousePos.current;
-        setLine((prev) => ({ ...prev, a: { x, y } }));
-      } else if (e.key === "b") {
-        const { x, y } = mousePos.current;
-        setLine((prev) => ({ ...prev, b: { x, y } }));
-      } else if (e.key === "Escape") {
-        setLine({ a: null, b: null });
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("mousemove", trackMousePos);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("mousemove", trackMousePos);
-    };
-  }, []);
-
-  // paint the line on the canvas if set
-  useEffect(() => {
-    const c = canvas?.current;
-    const pen = c?.getContext?.("2d");
-    const img = imageRef.current;
-    if (!img || !c || !pen) return;
-
-    // match rendered (scaled) image
-    c.width = img.clientWidth;
-    c.height = img.clientHeight;
-
-    // clear it
-    pen.clearRect(0, 0, c.width, c.height);
-    if (!(line.a && line.b)) return;
-
-    // draw the line
-    pen.strokeStyle = "red";
-    pen.lineWidth = 2;
-    pen.beginPath();
-    pen.moveTo(line.a.x, line.a.y);
-    pen.lineTo(line.b.x, line.b.y);
-    pen.stroke();
-
-    // calculate the distance in mm and draw the label along the line
-    const imgSize = { w: img.clientWidth, h: img.clientHeight };
-    const distanceMM = getLineLengthMM(line.a, line.b, imgSize, widthMM);
-
-    // draw the label at midpoint
-    const mid = {
-      x: (line.a.x + line.b.x) / 2,
-      y: (line.a.y + line.b.y) / 2,
-    };
-    const angle = Math.atan2(line.b.y - line.a.y, line.b.x - line.a.x);
-    pen.save();
-    pen.translate(mid.x, mid.y);
-    pen.rotate(angle);
-    pen.fillStyle = "white";
-    pen.font = "12px sans-serif";
-    pen.textAlign = "center";
-    pen.textBaseline = "bottom";
-    pen.fillText(`${distanceMM.toFixed(1)} mm`, 0, -5); // slightly above the line
-    pen.restore();
-  }, [line, widthMM]);
+  const heightMM = imgSize ? Math.round(widthMM * (imgSize.h / imgSize.w)) : 0;
 
   return (
     <div
@@ -189,7 +104,13 @@ export function PortraitViewer({ image }: { image: string }) {
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
       >
-        <canvas className="absolute top-0 left-0" ref={canvas}></canvas>
+        <GridMeasure
+          container={wrapperRef.current}
+          image={imageRef.current}
+          translate={translateRef.current}
+          scale={scale.current}
+          widthMM={widthMM}
+        />
         <img
           src={image}
           ref={imageRef}
@@ -205,7 +126,7 @@ export function PortraitViewer({ image }: { image: string }) {
             gridVisible ? "opacity-100" : "opacity-0"
           }`}
         >
-          <SubdividingGrid gridSize={8} />
+          <Grid gridSize={8} />
         </div>
       </div>
 
@@ -219,143 +140,4 @@ export function PortraitViewer({ image }: { image: string }) {
       </div>
     </div>
   );
-}
-
-type Square = {
-  id: string;
-  row: number;
-  col: number;
-  size: number;
-  subdivided?: { row: number; col: number; size: number }[];
-};
-
-function SubdividingGrid({ gridSize }: { gridSize: number }) {
-  // --- Load saved squares OR create default grid ---
-  const [squares, setSquares] = useState<Square[]>(() => {
-    const saved = localStorage.getItem("portraid:grid");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // no need to do anything
-      }
-    }
-    return Array.from({ length: gridSize * gridSize }, (_, i) => ({
-      id: `s-${i}`,
-      row: Math.floor(i / gridSize),
-      col: i % gridSize,
-      size: 1 / gridSize,
-    }));
-  });
-
-  const moved = useRef(false);
-
-  // --- Persist grid to localStorage ---
-  useEffect(() => {
-    localStorage.setItem("portraid:grid", JSON.stringify(squares));
-  }, [squares]);
-
-  function handleMouseDown() {
-    moved.current = false;
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }
-
-  function handleMouseMove() {
-    moved.current = true;
-  }
-
-  function handleMouseUp() {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-    setTimeout(() => {
-      moved.current = false;
-    }, 0);
-  }
-
-  function handleLeftClick(square: Square, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (moved.current) return;
-    if (square.subdivided) {
-      hideSubSquare(square);
-    } else {
-      showSubSquare(square);
-    }
-    moved.current = false;
-  }
-
-  function showSubSquare(square: Square) {
-    const newSub = [
-      { row: 0, col: 0, size: square.size / 2 },
-      { row: 0, col: 1, size: square.size / 2 },
-      { row: 1, col: 0, size: square.size / 2 },
-      { row: 1, col: 1, size: square.size / 2 },
-    ];
-    setSquares((prev) =>
-      prev.map((s) => (s.id === square.id ? { ...s, subdivided: newSub } : s))
-    );
-  }
-
-  function hideSubSquare(square: Square) {
-    setSquares((prev) =>
-      prev.map((s) =>
-        s.id === square.id ? { ...s, subdivided: undefined } : s
-      )
-    );
-  }
-
-  function renderSquare(square: Square, parentLeft = 0, parentTop = 0) {
-    const left = parentLeft + square.col * square.size * 100;
-    const top = parentTop + square.row * square.size * 100;
-    const sizePct = square.size * 100;
-
-    return (
-      <div key={square.id}>
-        <div
-          className="absolute border border-white/50 pointer-events-auto"
-          style={{
-            left: `${left}%`,
-            top: `${top}%`,
-            width: `${sizePct}%`,
-            height: `${sizePct}%`,
-          }}
-          onClick={(e) => handleLeftClick(square, e)}
-        />
-        {square.subdivided &&
-          square.subdivided.map((sub, i) => (
-            <div
-              key={`${square.id}-sub-${i}`}
-              className="absolute border border-white/30 pointer-events-auto"
-              style={{
-                left: `${left + sub.col * sub.size * 100}%`,
-                top: `${top + sub.row * sub.size * 100}%`,
-                width: `${sub.size * 100}%`,
-                height: `${sub.size * 100}%`,
-              }}
-              onClick={(e) => handleLeftClick(square, e)}
-            />
-          ))}
-      </div>
-    );
-  }
-
-  return (
-    <div onMouseDown={handleMouseDown}>
-      {squares.map((s) => renderSquare(s))}
-    </div>
-  );
-}
-
-function getLineLengthMM(
-  a: Point,
-  b: Point,
-  imgSize: { w: number; h: number },
-  widthMM: number
-) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const distPx = Math.sqrt(dx * dx + dy * dy);
-
-  const pxPerMM = imgSize.w / widthMM; // pixels per mm along width
-  return distPx / pxPerMM;
 }
