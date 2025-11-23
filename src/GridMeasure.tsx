@@ -96,11 +96,15 @@ export function GridMeasure(props: {
     pen.save();
     pen.translate(mid.x, mid.y);
     pen.rotate(angle);
-    pen.fillStyle = "white";
+    pen.fillStyle = "#ffffffaa";
+    const label = `${distanceMM.toFixed(1)} mm`;
+    const width = pen.measureText(label).width + 14;
+    pen.fillRect(-width / 2, -16, width, 14);
     pen.font = "12px sans-serif";
     pen.textAlign = "center";
     pen.textBaseline = "bottom";
-    pen.fillText(`${distanceMM.toFixed(1)} mm`, 0, -5); // slightly above the line
+    pen.fillStyle = "black";
+    pen.fillText(label, 0, -2); // slightly above the line
     pen.restore();
   }, [line, props.widthMM, props.image]);
 
