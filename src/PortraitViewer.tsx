@@ -1,28 +1,25 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+
+type Point = { x: number; y: number };
+type Line = { a: Point | null; b: Point | null };
 
 export function PortraitViewer({ image }: { image: string }) {
-  // --- Load persistent viewer state ---
-  const savedViewer = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("portraid:viewerState") || "{}");
-    } catch {
-      return {};
-    }
-  })();
+  // the state of the app
+  const savedState = useMemo(() => {
+    return JSON.parse(localStorage.getItem("portraid:viewerState") || "{}");
+    // eslint-disable-next-line
+  }, [image]);
 
-  const [scale, setScale] = useState(savedViewer.scale ?? 1);
-  const [gridVisible, setGridVisible] = useState(
-    savedViewer.gridVisible ?? true
-  );
-
-  const [translate, setTranslate] = useState(
-    savedViewer.translate ?? { x: 0, y: 0 }
-  );
-
-  const translateRef = useRef(savedViewer.translate ?? { x: 0, y: 0 });
-
+  // to avoid problems with event handlers not getting updated state, we use refs
+  const scale = useRef(1);
+  const translateRef = useRef(savedState.translate ?? { x: 0, y: 0 });
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const [, forceUpdate] = useState(0);
+
+  const [gridVisible, setGridVisible] = useState(
+    savedState.gridVisible ?? true
+  );
 
   // enable adding the width and showing the height of the image in mm
   const [widthMM, setWidthMM] = useState<number>(() => {
@@ -34,20 +31,18 @@ export function PortraitViewer({ image }: { image: string }) {
     localStorage.setItem("portraid:widthMM", String(widthMM));
   }, [widthMM]);
 
-  // --- Save viewer state ---
+  // save viewer state when anything changes
   useEffect(() => {
-    const state = {
-      scale,
-      translate,
-      gridVisible,
-    };
+    const state = { scale, translate: translateRef.current, gridVisible };
     localStorage.setItem("portraid:viewerState", JSON.stringify(state));
-  }, [scale, translate, gridVisible]);
+  }, [scale, translateRef.current.x, gridVisible]);
 
+  // handle all the events needed for image movement and zooming
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const delta = -e.deltaY;
     const zoomFactor = 0.001;
-    setScale((prev: number) => Math.max(0.1, prev + delta * zoomFactor));
+    scale.current = Math.max(0.1, scale.current + delta * zoomFactor);
+    forceUpdate((n) => n + 1);
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -65,8 +60,8 @@ export function PortraitViewer({ image }: { image: string }) {
       x: translateRef.current.x + dx,
       y: translateRef.current.y + dy,
     };
-    setTranslate({ ...translateRef.current });
     lastPos.current = { x: e.clientX, y: e.clientY };
+    forceUpdate((n) => n + 1);
   }
 
   function handleMouseUp() {
@@ -75,29 +70,123 @@ export function PortraitViewer({ image }: { image: string }) {
     window.removeEventListener("mouseup", handleMouseUp);
   }
 
+  // the user can toggle the grid on or off
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() === "g") {
+      if (e.key === "g") {
         setGridVisible((v: boolean) => !v);
+      } else if (e.key === "0") {
+        scale.current = 1;
+        translateRef.current = { x: 0, y: 0 };
+      } else if (["1", "2", "4"].includes(e.key)) {
+        scale.current = parseInt(e.key);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // the user can place a line on the image to measure distance between two points
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [line, setLine] = useState<Line>({ a: null, b: null });
+
+  // track mouse in IMAGE coordinates
+  const mousePos = useRef({ x: 0, y: 0 });
+  function trackMousePos(e: MouseEvent) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    // mouse pos relative to wrapper
+    const rect = wrapper.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    // including translation and scale
+    x = (x - translateRef.current.x) / scale.current;
+    y = (y - translateRef.current.y) / scale.current;
+
+    mousePos.current = { x, y };
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "a") {
+        const { x, y } = mousePos.current;
+        setLine((prev) => ({ ...prev, a: { x, y } }));
+      } else if (e.key === "b") {
+        const { x, y } = mousePos.current;
+        setLine((prev) => ({ ...prev, b: { x, y } }));
+      } else if (e.key === "Escape") {
+        setLine({ a: null, b: null });
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousemove", trackMousePos);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousemove", trackMousePos);
+    };
+  }, []);
+
+  // paint the line on the canvas if set
+  useEffect(() => {
+    const c = canvas?.current;
+    const pen = c?.getContext?.("2d");
+    const img = imageRef.current;
+    if (!img || !c || !pen) return;
+
+    // match rendered (scaled) image
+    c.width = img.clientWidth;
+    c.height = img.clientHeight;
+
+    pen.clearRect(0, 0, c.width, c.height);
+
+    if (!(line.a && line.b)) return;
+
+    const a = line.a;
+    const b = line.b;
+
+    //   // const a = { x: line.a.x * scale, y: line.a.y * scale };
+    //   // const b = { x: line.b.x * scale, y: line.b.y * scale };
+    //   const a = {
+    //     x: line.a.x * scale + translate.x,
+    //     y: line.a.y * scale + translate.y,
+    //   };
+    //   const b = {
+    //     x: line.b.x * scale + translate.x,
+    //     y: line.b.y * scale + translate.y,
+    //   };
+
+    // draw
+    pen.strokeStyle = "red";
+    pen.lineWidth = 2;
+    pen.beginPath();
+    pen.moveTo(a.x, a.y);
+    pen.lineTo(b.x, b.y);
+    pen.stroke();
+    // }, [line, scale.current, translateRef.current.x, translateRef.current.y]);
+  }, [line, translateRef.current.x, translateRef.current.y]);
+
   return (
-    <div className="bg-white flex justify-center items-center overflow-hidden outline-5 outline-black">
+    <div
+      ref={wrapperRef}
+      className="bg-white flex justify-center items-center overflow-hidden outline-5 outline-black"
+    >
       <div
         className="relative inline-block"
         style={{
-          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+          transform: `translate(${translateRef.current.x}px, ${translateRef.current.y}px) scale(${scale.current})`,
           transformOrigin: "top left",
         }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
       >
+        <canvas className="absolute top-0 left-0" ref={canvas}></canvas>
         <img
           src={image}
+          ref={imageRef}
           alt="Dropped"
           className="max-w-full max-h-[95vh] object-contain pointer-events-none select-none"
           onLoad={(e) => {
@@ -114,13 +203,13 @@ export function PortraitViewer({ image }: { image: string }) {
         </div>
       </div>
 
-      <div className="absolute top-0 flex justify-center items-center">
+      <div className="absolute top-0 flex justify-center items-center h-6">
         <input
           className="bg-white z-50 px-1 h-full w-12 text-center"
           value={widthMM}
           onChange={(e) => setWidthMM(Number(e.target.value))}
         />
-        <span className="text-white ml-2">{heightMM}</span>
+        <span className="text-black bg-white ml-2 px-2">{heightMM}</span>
       </div>
     </div>
   );
