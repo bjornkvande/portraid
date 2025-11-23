@@ -82,6 +82,7 @@ export function PortraitViewer({ image }: { image: string }) {
         scale.current = parseInt(e.key);
       }
     }
+    forceUpdate((n) => n + 1);
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -152,7 +153,27 @@ export function PortraitViewer({ image }: { image: string }) {
     pen.moveTo(line.a.x, line.a.y);
     pen.lineTo(line.b.x, line.b.y);
     pen.stroke();
-  }, [line]);
+
+    // calculate the distance in mm and draw the label along the line
+    const imgSize = { w: img.clientWidth, h: img.clientHeight };
+    const distanceMM = getLineLengthMM(line.a, line.b, imgSize, widthMM);
+
+    // draw the label at midpoint
+    const mid = {
+      x: (line.a.x + line.b.x) / 2,
+      y: (line.a.y + line.b.y) / 2,
+    };
+    const angle = Math.atan2(line.b.y - line.a.y, line.b.x - line.a.x);
+    pen.save();
+    pen.translate(mid.x, mid.y);
+    pen.rotate(angle);
+    pen.fillStyle = "white";
+    pen.font = "12px sans-serif";
+    pen.textAlign = "center";
+    pen.textBaseline = "bottom";
+    pen.fillText(`${distanceMM.toFixed(1)} mm`, 0, -5); // slightly above the line
+    pen.restore();
+  }, [line, widthMM]);
 
   return (
     <div
@@ -323,4 +344,18 @@ function SubdividingGrid({ gridSize }: { gridSize: number }) {
       {squares.map((s) => renderSquare(s))}
     </div>
   );
+}
+
+function getLineLengthMM(
+  a: Point,
+  b: Point,
+  imgSize: { w: number; h: number },
+  widthMM: number
+) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const distPx = Math.sqrt(dx * dx + dy * dy);
+
+  const pxPerMM = imgSize.w / widthMM; // pixels per mm along width
+  return distPx / pxPerMM;
 }
