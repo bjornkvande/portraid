@@ -141,33 +141,18 @@ export function PortraitViewer({ image }: { image: string }) {
     c.width = img.clientWidth;
     c.height = img.clientHeight;
 
+    // clear it
     pen.clearRect(0, 0, c.width, c.height);
-
     if (!(line.a && line.b)) return;
 
-    const a = line.a;
-    const b = line.b;
-
-    //   // const a = { x: line.a.x * scale, y: line.a.y * scale };
-    //   // const b = { x: line.b.x * scale, y: line.b.y * scale };
-    //   const a = {
-    //     x: line.a.x * scale + translate.x,
-    //     y: line.a.y * scale + translate.y,
-    //   };
-    //   const b = {
-    //     x: line.b.x * scale + translate.x,
-    //     y: line.b.y * scale + translate.y,
-    //   };
-
-    // draw
+    // draw the line
     pen.strokeStyle = "red";
     pen.lineWidth = 2;
     pen.beginPath();
-    pen.moveTo(a.x, a.y);
-    pen.lineTo(b.x, b.y);
+    pen.moveTo(line.a.x, line.a.y);
+    pen.lineTo(line.b.x, line.b.y);
     pen.stroke();
-    // }, [line, scale.current, translateRef.current.x, translateRef.current.y]);
-  }, [line, translateRef.current.x, translateRef.current.y]);
+  }, [line]);
 
   return (
     <div
